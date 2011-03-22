@@ -13,7 +13,6 @@
         function run() {
             $this->shrink_var_names();
             $this->remove_public_modifier();
-            $this->remove_bounding_tags();
 
             return $this->generate_result();
         }
@@ -22,7 +21,7 @@
             $result = "<?php\n";
             
             if($this->comment) {
-                foreach(is_array($this->comment) ? $this->comment : explode("\n", $this->comment) as $line) {
+                foreach($this->comment as $line) {
                     $result .= "# " . trim($line) . "\n";
                 }
             }
@@ -43,22 +42,6 @@
             return $result;
         }
         
-        private function remove_bounding_tags() {        
-            if($this->tokens[0][0] == T_OPEN_TAG)
-                $this->tokens[0] = array(-1, "");
-        
-            for($i = 1; $i < count($this->tokens); $i++) {
-                if($this->tokens[$i][0] == T_OPEN_TAG && $this->tokens[$i - 1][0] == T_CLOSE_TAG) {
-                    $this->tokens[$i] = array(-1, "");
-                    $this->tokens[$i - 1] = array(-1, "");
-                }
-            }
-            
-            $last = count($this->tokens) - 1;
-            if($this->tokens[$last][0] == T_CLOSE_TAG)
-                $this->tokens[$last] = array(-1, "");            
-        }
-
         private function remove_public_modifier() {
             for($i = 0; $i < count($this->tokens) - 1; $i++) {
                 if($this->tokens[$i][0] == T_PUBLIC)
@@ -122,9 +105,21 @@
             }
         }                
                
-        private function add_tokens($text) {
-            $pending_whitespace = "";
-            foreach(token_get_all($text) as $t) {
+        private function add_tokens($text) {            
+            $tokens = token_get_all(trim($text));
+            if(!count($tokens))
+                return;
+            
+            if(is_array($tokens[0]) && $tokens[0][0] == T_OPEN_TAG)
+                array_shift($tokens);
+                
+            $last = count($tokens) - 1;
+            if(is_array($tokens[$last]) && $tokens[$last][0] == T_CLOSE_TAG)
+                array_pop($tokens);
+                   
+            $pending_whitespace = count($this->tokens) ? "\n" : "";
+            
+            foreach($tokens as $t) {
                 if(!is_array($t))
                     $t = array(-1, $t);
                 
