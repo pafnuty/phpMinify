@@ -16,16 +16,16 @@
 
 <textarea style="width: 100%; height: 300px"><?php
 
-  require "compressor.php";
+    require "compressor.php";
     
     $c = new Compressor;
-    
+
     $c->keep_line_breaks = false;
     $c->comment = array(
         "Hello!",
         "This is your custom comment!"
     );
-    
+
     $c->load($text);           
     print htmlspecialchars($c->run());
 
