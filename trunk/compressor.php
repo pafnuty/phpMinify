@@ -1,6 +1,25 @@
 <?php
 
     class Compressor {
+        static $RESERVED_VARS = array(
+            '$GLOBALS' => 1,
+            '$_ENV' => 1, 
+            '$_SERVER' => 1, 
+            '$_SESSION' => 1, 
+            '$_REQUEST' => 1, 
+            '$_GET' => 1, 
+            '$_POST' => 1, 
+            '$_FILES' => 1, 
+            '$_COOKIE' => 1,
+            '$HTTP_RAW_POST_DATA' => 1,
+            '$this' => 1            
+        );
+        const BLOCK_ROOT = 0;
+        const BLOCK_CLASS = 1;
+        const BLOCK_FUNC = 2;
+        const BLOCK_MISC = 3;
+        
+        
         public $comment = null;
         public $keep_line_breaks = false;
     
@@ -52,41 +71,68 @@
         private function shrink_var_names() {
             $stat = array();
             $indices = array();
-            $exclusions = array(
-                '$_ENV' => 1, 
-                '$_SERVER' => 1, 
-                '$_SESSION' => 1, 
-                '$_REQUEST' => 1, 
-                '$_GET' => 1, 
-                '$_POST' => 1, 
-                '$_FILES' => 1, 
-                '$_COOKIE' => 1,
-                '$this' => 1
-            );
+            
+            $block_stack = array();
+            $pending_block = self::BLOCK_MISC;
+            $global_clause = false;
             
             for($i = 0; $i < count($this->tokens); $i++) {                
-                if($this->tokens[$i][0] != T_VARIABLE)
-                    continue;
+                list($type, $text) = $this->tokens[$i];
+                
+                if($type == T_CLASS)
+                    $pending_block = self::BLOCK_CLASS;
+                
+                if($type == T_FUNCTION)
+                    $pending_block = self::BLOCK_FUNC;                
+                
+                if($type == T_GLOBAL)
+                    $global_clause = true;                                
+                
+                if($type == T_VARIABLE) {                                                            
+                    if($global_clause)
+                        continue;                    
                     
-                $name = $this->tokens[$i][1];
-                
-                if($i > 0) {                    
-                    if(in_array($this->tokens[$i - 1][0], array(T_DOUBLE_COLON, T_VAR, T_PUBLIC, T_PROTECTED, T_PRIVATE, T_STATIC))) {
-                        $exclusions[$name] = 1;
-                        continue;
-                    }
-                }
-                
-                $indices[] = $i;
+                    if(isset(self::$RESERVED_VARS[$text]))
+                        continue;                    
 
-                if(!isset($stat[$name]))
-                    $stat[$name] = 0;
-                $stat[$name]++;
+                    $current_block = self::BLOCK_ROOT;
+                    foreach($block_stack as $item) {
+                        if($item != self::BLOCK_MISC) {
+                            $current_block = $item;
+                            break;
+                        }
+                    }                    
+                    
+                    if($current_block == self::BLOCK_ROOT)
+                        continue;
+                    
+                    if($i > 0) {
+                        $prev_token = $this->tokens[$i - 1];                        
+                        if(in_array($prev_token[0], array(T_DOUBLE_COLON, T_VAR, T_PUBLIC, T_PROTECTED, T_PRIVATE)))
+                            continue;
+                        if($prev_token[0] == T_STATIC && $current_block == self::BLOCK_CLASS)
+                            continue;                        
+                    }
+                    
+                    $indices[] = $i;
+                    if(!isset($stat[$text]))
+                        $stat[$text] = 0;
+                    $stat[$text]++;
+                }                
+                               
+                if($type == -1) {
+                    if($text == "{") {
+                        array_unshift($block_stack, $pending_block);
+                        $pending_block = self::BLOCK_MISC;
+                    } 
+                    
+                    if($text == "}")            
+                        array_shift($block_stack);                    
+                    
+                    if($text == "}" || $text == ";")
+                        $global_clause = false;                    
+                }
             }
-            foreach(array_keys($exclusions) as $name) {
-                unset($stat[$name]);
-            }
-            unset($exclusions);           
             
             arsort($stat);
             
@@ -99,11 +145,10 @@
             unset($stat);
             
             foreach($indices as $index) {
-                $name = $this->tokens[$index][1];
-                if(isset($aliases[$name]))
-                    $this->tokens[$index][1] = '$' . $aliases[$name];
+                $name = $this->tokens[$index][1];                
+                $this->tokens[$index][1] = '$' . $aliases[$name];
             }
-        }                
+        }        
                
         private function add_tokens($text) {            
             $tokens = token_get_all(trim($text));
