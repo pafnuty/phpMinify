@@ -81,10 +81,10 @@
                     continue;                    
                                       
                 if($i > 0) {
-                    $prev_type = $this->tokens[$i - 1][0];                    
-                    if(in_array($prev_type, array(T_DOUBLE_COLON, T_VAR, T_PUBLIC, T_PROTECTED, T_PRIVATE)))
-                        continue;
-                    if($prev_type == T_STATIC && $this->is_class_scope($i))
+                    $prev_type = $this->tokens[$i - 1][0];
+                    if($prev_type == T_DOUBLE_COLON)
+                        continue;                    
+                    if($this->is_class_scope($i))
                         continue;                        
                 }
                     
