@@ -1,5 +1,5 @@
 <?php
-    $text = isset($_POST["q"]) ? $_POST["q"] : file_get_contents("compressor.php");
+    $text = isset($_POST["q"]) ? $_POST["q"] : file_get_contents("phpMinify.php");
     if(strlen($text) > 256 * 1024)
         die("Too much data, sorry");
 ?>
@@ -16,9 +16,9 @@
 
 <textarea style="width: 100%; height: 300px"><?php
 
-    require "compressor.php";
+    require "phpMinify.php";
     
-    $c = new Compressor;
+    $c = new PhpMinify;
 
     $c->keep_line_breaks = false;
     $c->comment = array(
