@@ -72,9 +72,10 @@ class PhpMinify
      */
     private function generateResult()
     {
-        $result = "<?php\n";
+        $result = "<?php ";
 
         if ($this->comment) {
+            $result .= "\n";
             foreach ($this->comment as $line) {
                 $result .= "# " . trim($line) . "\n";
             }
